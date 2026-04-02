@@ -1,0 +1,7 @@
+{
+  "extraPaths": [
+    "./Silent-Face-Anti-Spoofing"
+  ],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "off"
+}

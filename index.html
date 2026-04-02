@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FaceLog — Smart Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <div class="logo">Face<span>Log</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchPage('attendance')">📷 Attendance</button>
+    <button class="nav-tab" onclick="switchPage('enrollment')">➕ Enroll Student</button>
+    <button class="nav-tab" onclick="switchPage('manage')">🗑️ Manage Students</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ══ ATTENDANCE PAGE ══ -->
+  <div id="page-attendance" class="page active">
+    <div class="attendance-layout">
+
+      <div class="camera-zone">
+        <div class="video-wrapper">
+          <div class="video-border"></div>
+          <video id="attendanceVideo" autoplay playsinline muted></video>
+          <div class="scan-line" id="scanLine"></div>
+        </div>
+        <div class="status-badge" id="statusBadge">
+          <div class="status-dot"></div>
+          <span id="statusText">Camera ready — select class and start</span>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div>
+          <div class="panel-section-title">Session Setup</div>
+          <div class="select-group">
+            <select class="styled-select" id="subjectSelect" onchange="loadClasses()">
+              <option value="">Loading subjects…</option>
+            </select>
+            <select class="styled-select" id="classSelect">
+              <option value="">Select a class session</option>
+            </select>
+          </div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn btn-primary" onclick="startAttendance()">▶ Start</button>
+            <button class="btn btn-secondary" onclick="stopAttendance()">■ Stop</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="log-area">
+          <div class="panel-section-title">Attendance Log <span id="logCount" style="color:var(--accent)"></span></div>
+          <div class="log-list" id="attendanceLog">
+            <div class="empty-log">
+              <div class="empty-icon">👁️</div>
+              <div>No recognitions yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ ENROLLMENT PAGE ══ -->
+  <div id="page-enrollment" class="page">
+    <div class="enrollment-layout">
+
+      <div class="page-hero">
+        <h1>Enroll a<br><span class="hero-grad">New Student</span></h1>
+        <p>Register student details, assign to their group, and capture face samples for recognition training.</p>
+      </div>
+
+      <div class="duplicate-banner" id="duplicateBanner" role="alert" aria-live="assertive">
+        <div class="dup-icon-wrap">
+          <div class="dup-pulse-ring"></div>
+          <span class="dup-icon">⚠️</span>
+        </div>
+        <div class="dup-body">
+          <div class="dup-title">Student Already Enrolled</div>
+          <div class="dup-detail">
+            The face in the camera matches an existing student:
+            <strong id="dupName">—</strong>
+            <span class="dup-uid-pill" id="dupUid">—</span>
+          </div>
+          <div class="dup-hint">Please remove this person from the camera to continue.</div>
+        </div>
+      </div>
+
+      <div class="enroll-grid">
+
+        <div class="card">
+          <div class="card-title"><div class="card-icon">👤</div>Student Info</div>
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input class="form-input" id="enrollName" type="text" placeholder="e.g. Priya Sharma">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input class="form-input" id="enrollEmail" type="email" placeholder="student@college.edu">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="form-input" id="enrollPassword" type="password" placeholder="Set a password">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><div class="card-icon">🏫</div>Department & Group</div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <select class="form-input styled-select" id="enrollDept" onchange="loadEnrollGroups()">
+              <option value="">Select department…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Group / Section</label>
+            <select class="form-input styled-select" id="enrollGroup">
+              <option value="">Select a department first</option>
+            </select>
+          </div>
+          <div style="padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.6">
+            After saving, a UID will be auto-generated and face data will be captured below.
+          </div>
+        </div>
+
+        <div class="card capture-zone">
+          <div class="card-title">
+            <div class="card-icon">📸</div>
+            Face Capture
+            <span style="font-size:12px;color:var(--muted);font-weight:400;margin-left:auto">Capture 20 photos</span>
+          </div>
+          <div class="capture-inner">
+            <div class="capture-video-wrap">
+              <video id="enrollVideo" autoplay playsinline muted></video>
+              <div class="face-overlay"><div class="face-guide"></div></div>
+            </div>
+            <div class="capture-controls">
+              <div>
+                <div class="capture-count" id="captureCount">0</div>
+                <div style="font-size:13px;color:var(--muted)">of 20 photos captured</div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar" id="captureProgress"></div>
+              </div>
+              <div class="photo-strip" id="photoStrip"></div>
+              <button class="btn btn-primary" onclick="startCapture()" id="captureBtn">
+                <span class="btn-text">📸 Start Capture</span>
+                <div class="spinner"></div>
+              </button>
+              <button class="btn btn-secondary" onclick="resetCapture()">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="submit-row">
+          <button class="btn btn-primary btn-lg" onclick="submitEnrollment()" id="submitBtn" style="min-width:200px">
+            <span class="btn-text">✅ Enroll Student</span>
+            <div class="spinner"></div>
+          </button>
+          <span style="font-size:13px;color:var(--muted)">Student will be created in Firebase Auth & Firestore, then face model will be trained.</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MANAGE STUDENTS PAGE ══ -->
+  <div id="page-manage" class="page">
+    <div class="manage-layout">
+
+      <div class="page-hero" style="margin-bottom:32px">
+        <h1>Manage<br><span class="hero-grad">Students</span></h1>
+        <p>Search and remove enrolled students. Deleting a student clears their dataset folder and retrains the recognition model.</p>
+      </div>
+
+      <div class="manage-search-wrap">
+        <div class="manage-search-box">
+          <span class="search-icon">🔍</span>
+          <input class="manage-search-input" id="studentSearch" type="text"
+            placeholder="Search by name, email or UID…" oninput="filterStudents()">
+        </div>
+        <button class="btn btn-secondary" style="flex-shrink:0;padding:11px 20px" onclick="loadStudents()">↺ Refresh</button>
+      </div>
+
+      <div class="manage-stats">
+        <div class="stat-chip"><span id="statTotal">—</span> students</div>
+      </div>
+
+      <!-- Confirm delete modal -->
+      <div class="delete-modal-overlay" id="deleteModalOverlay" onclick="closeDeleteModal()">
+        <div class="delete-modal" onclick="event.stopPropagation()">
+          <div class="delete-modal-icon">⚠️</div>
+          <div class="delete-modal-title">Delete Student?</div>
+          <div class="delete-modal-body" id="deleteModalBody">
+            This will permanently remove the student from Firebase, the dataset, and retrain the face model.
+          </div>
+          <div class="delete-modal-actions">
+            <button class="btn btn-secondary" style="flex:1" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" style="flex:1" id="confirmDeleteBtn" onclick="confirmDelete()">
+              <span class="btn-text">🗑️ Delete</span>
+              <div class="spinner"></div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty / loading state (outside grid so innerHTML = '' doesn't destroy it) -->
+      <div class="students-empty" id="studentsEmpty">
+        <div style="font-size:40px;opacity:0.25">👥</div>
+        <div style="color:var(--muted);font-size:14px;margin-top:10px">Loading students…</div>
+      </div>
+
+      <!-- Student list -->
+      <div class="student-grid" id="studentGrid"></div>
+
+    </div>
+  </div>
+
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
