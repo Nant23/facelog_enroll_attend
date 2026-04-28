@@ -44,9 +44,9 @@ db = firestore.client()
 # ─────────────────────────────────────────────
 # Models
 # ─────────────────────────────────────────────
-yolo_model = YOLO("model/best.pt")
+yolo_model = YOLO("../model/best.pt")
 
-with open("model/face_recognition_knn.pkl", "rb") as f:
+with open("../model/face_recognition_knn.pkl", "rb") as f:
     knn_clf, label_encoder = pickle.load(f)
 
 
@@ -236,11 +236,27 @@ def get_classes(subject_id: str):
     classes_ref = (
         db.collection("classes").where("subject", "==", subject_id).stream()
     )
+    now = datetime.datetime.now(datetime.timezone.utc)
     classes = []
     for doc in classes_ref:
         data = doc.to_dict()
         date = data.get("date")
-        date_str = date.strftime("%Y-%m-%d %H:%M") if date else "No Date"
+        duration = data.get("duration", 0)  # duration in minutes
+
+        if not date:
+            continue
+
+        # Firestore Timestamps are timezone-aware; make `date` tz-aware if needed
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=datetime.timezone.utc)
+
+        class_end = date + datetime.timedelta(minutes=int(duration))
+
+        # Only include classes that have started but not yet ended
+        if not (date <= now <= class_end):
+            continue
+
+        date_str = date.strftime("%Y-%m-%d %H:%M")
         classes.append(
             {
                 "id": doc.id,

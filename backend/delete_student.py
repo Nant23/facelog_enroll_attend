@@ -7,8 +7,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
 
 # ────────────────────────────────────────────────
-DATASET_PATH = "../dataset"
-MODEL_PATH   = "model/face_recognition_knn.pkl"
+DATASET_PATH = "../../dataset"
+MODEL_PATH   = "../model/face_recognition_knn.pkl"
 # ────────────────────────────────────────────────
 
 if len(sys.argv) < 3:

@@ -8,8 +8,8 @@ from sklearn.preprocessing import LabelEncoder
 import numpy as np
 
 # -------------------------------
-DATASET_PATH = "../dataset"
-MODEL_PATH = "model/face_recognition_knn.pkl"
+DATASET_PATH = "../../dataset"
+MODEL_PATH = "../model/face_recognition_knn.pkl"
 
 # Check if full_name and UID are provided
 if len(sys.argv) < 3:
