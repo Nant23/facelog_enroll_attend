@@ -103,23 +103,32 @@ async function captureLoop() {
 
       const res = await fetch(`${API}/recognize`, { method: 'POST', body: form })
       const data = await res.json()
+      const results = data.results ?? []  // new array format
 
-      if (data.name === 'Spoof') {
-        // Throttle spoof warnings to once every 5 seconds
+      let spoofFound = false
+
+      for (const face of results) {
+        if (face.name === 'Spoof') {
+          spoofFound = true
+
+        } else if (face.name && face.name !== 'Unknown' && face.uid) {
+          if (!markedSet.has(face.uid)) {
+            markedSet.add(face.uid)
+            addLogEntry(face.name, face.uid, face.time)
+            document.getElementById('logCount').textContent = `(${markedSet.size})`
+          }
+        }
+      }
+
+      // Throttle spoof warnings to once every 5 seconds
+      if (spoofFound) {
         const now = Date.now()
         if (now - lastSpoofAlert > 5000) {
           lastSpoofAlert = now
           toast('⚠️ Spoof attempt detected! Show your real face.', 'error')
           updateStatusSpoof()
         }
-
-      } else if (data.name && data.name !== 'Unknown' && data.name !== 'No Face') {
-        if (!markedSet.has(data.uid)) {
-          markedSet.add(data.uid)
-          addLogEntry(data.name, data.uid, data.time)
-          document.getElementById('logCount').textContent = `(${markedSet.size})`
-        }
-        // Reset status back to scanning after a recognised face
+      } else if (results.length > 0) {
         document.getElementById('statusText').textContent = 'Scanning for faces…'
       }
 
@@ -375,7 +384,7 @@ async function submitEnrollment() {
     const data = await res.json()
 
     if (res.ok) {
-      toast(`✅ ${name} enrolled! UID: ${data.uid}`, 'success')
+      toast(` ${name} enrolled! UID: ${data.uid}`, 'success')
       // Clear form
       document.getElementById('enrollName').value = ''
       document.getElementById('enrollEmail').value = ''

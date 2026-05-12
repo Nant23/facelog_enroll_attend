@@ -15,15 +15,14 @@ from ultralytics import YOLO
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth
 
-# ── Anti-spoofing imports ──
-sys.path.insert(0, "./Silent-Face-Anti-Spoofing")
+#  Anti-spoofing imports 
+sys.path.insert(0, "../Silent-Face-Anti-Spoofing")
 from src.anti_spoof_predict import AntiSpoofPredict
 from src.generate_patches import CropImage
 from src.utility import parse_model_name
 
-# ─────────────────────────────────────────────
 # App & Middleware
-# ─────────────────────────────────────────────
+
 app = FastAPI()
 
 app.add_middleware(
@@ -34,34 +33,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─────────────────────────────────────────────
 # Firebase
-# ─────────────────────────────────────────────
 cred = credentials.Certificate("face-log-fb54d-firebase-adminsdk-fbsvc-e64cc3dab5.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# ─────────────────────────────────────────────
 # Models
-# ─────────────────────────────────────────────
 yolo_model = YOLO("../model/best.pt")
 
 with open("../model/face_recognition_knn.pkl", "rb") as f:
     knn_clf, label_encoder = pickle.load(f)
 
 
-# ─────────────────────────────────────────────
 # Model Hot-Reload Helper
-# ─────────────────────────────────────────────
 def reload_model():
     """Re-read the KNN model from disk into the global variables."""
     global knn_clf, label_encoder
-    with open("model/face_recognition_knn.pkl", "rb") as f:
+    with open("../model/face_recognition_knn.pkl", "rb") as f:
         knn_clf, label_encoder = pickle.load(f)
 
-# ── Anti-spoofing setup ──
+#  Anti-spoofing setup 
 DEVICE_ID = 0
-ANTI_SPOOF_ROOT = os.path.abspath("./Silent-Face-Anti-Spoofing")
+ANTI_SPOOF_ROOT = os.path.abspath("../Silent-Face-Anti-Spoofing")
 SPOOF_MODEL_DIR = os.path.join(ANTI_SPOOF_ROOT, "resources", "anti_spoof_models")
 
 # Temporarily switch to the repo directory so internal relative paths resolve
@@ -72,9 +65,7 @@ image_cropper = CropImage()
 os.chdir(_original_dir)  # Switch back immediately
 
 
-# ─────────────────────────────────────────────
 # Anti-Spoofing Helper
-# ─────────────────────────────────────────────
 def is_real_face(rgb_img: np.ndarray, box_css: tuple) -> bool:
     """
     Runs the Silent-Face liveness check on a single detected face.
@@ -117,9 +108,7 @@ def is_real_face(rgb_img: np.ndarray, box_css: tuple) -> bool:
     return int(label) == 1
 
 
-# ─────────────────────────────────────────────
 # DUPLICATE FACE CHECK (used during enrollment)
-# ─────────────────────────────────────────────
 
 @app.post("/check-face")
 async def check_face(file: UploadFile = File(...)):
@@ -170,9 +159,7 @@ async def check_face(file: UploadFile = File(...)):
     return {"status": "unknown"}
 
 
-# ─────────────────────────────────────────────
 # ATTENDANCE
-# ─────────────────────────────────────────────
 
 @app.post("/recognize")
 async def recognize(file: UploadFile = File(...), class_id: str = Form("")):
@@ -180,46 +167,49 @@ async def recognize(file: UploadFile = File(...), class_id: str = Form("")):
     img = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # ── Face detection via YOLO ──
-    results = yolo_model(rgb, verbose=False)
+    results_yolo = yolo_model(rgb, verbose=False)
     boxes = []
-    for result in results:
+    for result in results_yolo:
         for box in result.boxes.xyxy:
             x1, y1, x2, y2 = map(int, box)
-            boxes.append((y1, x2, y2, x1))  # → (top, right, bottom, left)
+            boxes.append((y1, x2, y2, x1))
 
     if not boxes:
-        return {"name": "No Face"}
+        return {"results": [], "message": "No Face"}
 
     encodings = face_recognition.face_encodings(rgb, boxes)
+    attended = []
+    timestamp = datetime.datetime.now()
 
     for box, encoding in zip(boxes, encodings):
-
-        # ── Anti-spoofing check ──
+        # Skip spoofs but continue checking other faces
         if not is_real_face(rgb, box):
-            return {"name": "Spoof", "uid": None, "time": None}
+            attended.append({"name": "Spoof", "uid": None})
+            continue
 
-        # ── KNN recognition ──
         distances, _ = knn_clf.kneighbors([encoding], n_neighbors=1)
+        if distances[0][0] > 0.5:
+            attended.append({"name": "Unknown", "uid": None})
+            continue
+
         predicted = knn_clf.predict([encoding])[0]
         label = label_encoder.inverse_transform([predicted])[0]
-
-        if distances[0][0] > 0.5:
-            return {"name": "Unknown"}
-
-        timestamp = datetime.datetime.now()
         parts = label.split(" ")
         uid = parts[-1]
         name = " ".join(parts[:-1])
 
-        # ── Mark attendance in Firestore ──
+        # Mark attendance
         if class_id:
             class_ref = db.collection("classes").document(class_id)
             class_ref.update({"attended": firestore.ArrayUnion([uid])})
 
-        return {"name": name, "uid": uid, "time": timestamp.strftime("%H:%M:%S")}
+        attended.append({
+            "name": name,
+            "uid": uid,
+            "time": timestamp.strftime("%H:%M:%S")
+        })
 
-    return {"name": "No Face"}
+    return {"results": attended}
 
 
 @app.get("/subjects")
