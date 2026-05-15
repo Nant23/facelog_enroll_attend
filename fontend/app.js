@@ -1,6 +1,6 @@
 const API = "http://127.0.0.1:8000"
 
-// ── Page switching ──
+//  Page switching 
 function switchPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'))
@@ -10,7 +10,7 @@ function switchPage(page) {
   if (page === 'manage') loadStudents()
 }
 
-// ── Toast ──
+//  Toast 
 function toast(msg, type = 'info') {
   const el = document.createElement('div')
   el.className = `toast ${type}`
@@ -19,9 +19,7 @@ function toast(msg, type = 'info') {
   setTimeout(() => el.remove(), 4000)
 }
 
-// ─────────────────────────────────────────────
 // ATTENDANCE
-// ─────────────────────────────────────────────
 let attendanceRunning = false
 const attendanceVideo = document.getElementById('attendanceVideo')
 const logEl = document.getElementById('attendanceLog')

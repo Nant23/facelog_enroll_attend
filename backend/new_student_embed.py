@@ -8,8 +8,11 @@ from sklearn.preprocessing import LabelEncoder
 import numpy as np
 
 # -------------------------------
-DATASET_PATH = "../../dataset"
-MODEL_PATH = "../model/face_recognition_knn.pkl"
+# Anchor all paths to this script's location
+# -------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASET_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "dataset"))
+MODEL_PATH   = os.path.normpath(os.path.join(BASE_DIR, "..", "model", "face_recognition_knn.pkl"))
 
 # Check if full_name and UID are provided
 if len(sys.argv) < 3:
@@ -28,7 +31,6 @@ person_folder = os.path.join(DATASET_PATH, TARGET_FOLDER_NAME)
 if not os.path.exists(person_folder):
     raise FileNotFoundError(f"Could not find folder: {TARGET_FOLDER_NAME} in {DATASET_PATH}")
 
-# We use the full folder name as the label in the classifier
 LABEL_NAME = TARGET_FOLDER_NAME
 
 # -------------------------------
@@ -40,7 +42,6 @@ if not os.path.exists(MODEL_PATH):
 with open(MODEL_PATH, "rb") as f:
     knn_clf, label_encoder = pickle.load(f)
 
-# Get old embeddings and labels
 X_old = list(knn_clf._fit_X)
 y_old = list(knn_clf._y)
 
@@ -73,11 +74,9 @@ for idx, img_name in enumerate(images, start=1):
     encoding = face_recognition.face_encodings(rgb, boxes)[0]
     X_new.append(encoding)
 
-    # Encode new label using existing LabelEncoder
     if LABEL_NAME in label_encoder.classes_:
         label = label_encoder.transform([LABEL_NAME])[0]
     else:
-        # Update classes list to include new student
         classes = list(label_encoder.classes_)
         classes.append(LABEL_NAME)
         label_encoder.classes_ = np.array(classes)
